@@ -24,6 +24,7 @@ namespace Tui
             get;
             private set;
         }
+
         public int Height
         {
             get;
@@ -40,13 +41,19 @@ namespace Tui
             Thread windowThread = new Thread(() =>
                 {
                     window = new ScreenWindow();
-                    font = new FormatConvertedBitmap(new BitmapImage(new Uri("pack://application:,,,/Tui;component/Terminal.png")), PixelFormats.Indexed4, CreateDefaultPalette(), 0);
+                    BitmapPalette palette = CreateDefaultPalette();
+                    font = new FormatConvertedBitmap(new BitmapImage(new Uri("pack://application:,,,/Tui;component/Terminal.png")), PixelFormats.Indexed4, palette, 0);
                     if (font.PixelWidth % 512 != 0)
                     {
                         throw new ArgumentException("The font image must contain 256 glyphs and each glyph must be a multiple of 2 pixels wide.");
                     }
                     fontWidth = font.PixelWidth / 256;
                     fontHeight = font.PixelHeight;
+                    int imageWidth = width * fontWidth;
+                    int imageHeight = height * fontHeight;
+                    display = new WriteableBitmap(imageWidth, imageHeight, 96, 96, PixelFormats.Indexed4, palette);
+                    byte[] data = new byte[imageWidth / 2 * imageHeight];
+                    display.WritePixels(new Int32Rect(0, 0, imageWidth, imageHeight), data, imageWidth / 2, 0, 0);
                     window.image.Source = display;
                     window.image.Width = width * fontWidth;
                     window.image.Height = height * fontHeight;
@@ -59,6 +66,25 @@ namespace Tui
             windowThread.IsBackground = true;
             windowThread.Start();
             tcs.Task.Wait();
+        }
+
+        public void WriteCharData(CharData charData, int x, int y)
+        {
+            window.Dispatcher.Invoke(() =>
+                {
+                    byte[] data = new byte[fontWidth / 2 * fontHeight];
+                    font.CopyPixels(new Int32Rect(fontWidth * charData.CharacterByte, 0, fontWidth, fontHeight), data, fontWidth / 2, 0);
+                    // output = (font & !foreground) ^ (font | background)
+                    byte a = (byte)(~(int)charData.Foreground & 0x0F);
+                    a |= (byte)(a << 4);
+                    byte b = (byte)((int)charData.Background & 0x0F);
+                    b |= (byte)(b << 4);
+                    for (int i = 0; i < data.Length; i++)
+                    {
+                        data[i] = (byte)((data[i] & a) ^ (data[i] | b));
+                    }
+                    display.WritePixels(new Int32Rect(0, 0, fontWidth, fontHeight), data, fontWidth / 2, x * fontWidth, y * fontHeight);
+                });
         }
 
         public void Close()

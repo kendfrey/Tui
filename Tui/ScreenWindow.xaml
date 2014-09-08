@@ -2,6 +2,6 @@
         x:ClassModifier="internal"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Tui" ResizeMode="CanMinimize" Closing="Window_Closing">
+        Title="Tui" ResizeMode="CanMinimize" Closing="Window_Closing" Background="Black">
     <Image x:Name="image" x:FieldModifier="public" HorizontalAlignment="Left" VerticalAlignment="Top" />
 </Window>
