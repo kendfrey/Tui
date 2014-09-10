@@ -46,6 +46,7 @@
   <ItemGroup>
     <Compile Include="CharData.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Rectangle.cs" />
     <Compile Include="Screen.cs" />
     <Compile Include="ScreenWindow.xaml.cs">
       <DependentUpon>ScreenWindow.xaml</DependentUpon>

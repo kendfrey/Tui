@@ -12,7 +12,7 @@ namespace Tui
         DarkRed,
         DarkGreen,
         DarkYellow,
-        DarkNavy,
+        DarkBlue,
         DarkMagenta,
         DarkCyan,
         LightGray,

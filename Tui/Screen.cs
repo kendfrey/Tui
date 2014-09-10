@@ -18,6 +18,7 @@ namespace Tui
         BitmapSource font;
         int fontWidth;
         int fontHeight;
+        CharData[,] buffer;
 
         public int Width
         {
@@ -37,6 +38,14 @@ namespace Tui
 
         public Screen(int width, int height)
         {
+            if (width < 0)
+            {
+                throw new ArgumentOutOfRangeException("width", width, "width must not be negative.");
+            }
+            if (height < 0)
+            {
+                throw new ArgumentOutOfRangeException("height", height, "height must not be negative.");
+            }
             TaskCompletionSource<object> tcs = new TaskCompletionSource<object>();
             Thread windowThread = new Thread(() =>
                 {
@@ -65,26 +74,142 @@ namespace Tui
             windowThread.SetApartmentState(ApartmentState.STA);
             windowThread.IsBackground = true;
             windowThread.Start();
+            Width = width;
+            Height = height;
+            buffer = new CharData[height, width];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    buffer[y, x].CharacterByte = 0;
+                    buffer[y, x].Background = TextColor.Black;
+                    buffer[y, x].Foreground = TextColor.LightGray;
+                }
+            }
             tcs.Task.Wait();
+        }
+
+        public void Clear()
+        {
+            Clear(new Rectangle(0, 0, Width, Height));
+        }
+
+        public void Clear(Rectangle rectangle)
+        {
+            CharData charData = new CharData();
+            charData.CharacterByte = 0;
+            charData.Foreground = TextColor.LightGray;
+            charData.Background = TextColor.Black;
+            FillCharData(charData, rectangle);
+        }
+
+        public void FillChar(char character, Rectangle rectangle)
+        {
+            for (int y = 0; y < rectangle.Height; y++)
+            {
+                for (int x = 0; x < rectangle.Width; x++)
+                {
+                    WriteChar(character, rectangle.X + x, rectangle.Y + y);
+                }
+            }
+        }
+
+        public void FillCharByte(byte character, Rectangle rectangle)
+        {
+            for (int y = 0; y < rectangle.Height; y++)
+            {
+                for (int x = 0; x < rectangle.Width; x++)
+                {
+                    WriteCharByte(character, rectangle.X + x, rectangle.Y + y);
+                }
+            }
+        }
+
+        public void FillColors(TextColor foreground, TextColor background, Rectangle rectangle)
+        {
+            for (int y = 0; y < rectangle.Height; y++)
+            {
+                for (int x = 0; x < rectangle.Width; x++)
+                {
+                    WriteColors(foreground, background, rectangle.X + x, rectangle.Y + y);
+                }
+            }
+        }
+
+        public void FillForeground(TextColor foreground, Rectangle rectangle)
+        {
+            for (int y = 0; y < rectangle.Height; y++)
+            {
+                for (int x = 0; x < rectangle.Width; x++)
+                {
+                    WriteForeground(foreground, rectangle.X + x, rectangle.Y + y);
+                }
+            }
+        }
+
+        public void FillBackground(TextColor background, Rectangle rectangle)
+        {
+            for (int y = 0; y < rectangle.Height; y++)
+            {
+                for (int x = 0; x < rectangle.Width; x++)
+                {
+                    WriteBackground(background, rectangle.X + x, rectangle.Y + y);
+                }
+            }
+        }
+
+        public void FillCharData(CharData charData, Rectangle rectangle)
+        {
+            for (int y = 0; y < rectangle.Height; y++)
+            {
+                for (int x = 0; x < rectangle.Width; x++)
+                {
+                    WriteCharData(charData, rectangle.X + x, rectangle.Y + y);
+                }
+            }
+        }
+
+        public void WriteChar(char character, int x, int y)
+        {
+            CheckBounds(x, y);
+            buffer[y, x].Character = character;
+            Draw(x, y);
+        }
+
+        public void WriteCharByte(byte character, int x, int y)
+        {
+            CheckBounds(x, y);
+            buffer[y, x].CharacterByte = character;
+            Draw(x, y);
+        }
+
+        public void WriteColors(TextColor foreground, TextColor background, int x, int y)
+        {
+            CheckBounds(x, y);
+            buffer[y, x].Foreground = foreground;
+            buffer[y, x].Background = background;
+            Draw(x, y);
+        }
+
+        public void WriteForeground(TextColor foreground, int x, int y)
+        {
+            CheckBounds(x, y);
+            buffer[y, x].Foreground = foreground;
+            Draw(x, y);
+        }
+
+        public void WriteBackground(TextColor background, int x, int y)
+        {
+            CheckBounds(x, y);
+            buffer[y, x].Background = background;
+            Draw(x, y);
         }
 
         public void WriteCharData(CharData charData, int x, int y)
         {
-            window.Dispatcher.Invoke(() =>
-                {
-                    byte[] data = new byte[fontWidth / 2 * fontHeight];
-                    font.CopyPixels(new Int32Rect(fontWidth * charData.CharacterByte, 0, fontWidth, fontHeight), data, fontWidth / 2, 0);
-                    // output = (font & !foreground) ^ (font | background)
-                    byte a = (byte)(~(int)charData.Foreground & 0x0F);
-                    a |= (byte)(a << 4);
-                    byte b = (byte)((int)charData.Background & 0x0F);
-                    b |= (byte)(b << 4);
-                    for (int i = 0; i < data.Length; i++)
-                    {
-                        data[i] = (byte)((data[i] & a) ^ (data[i] | b));
-                    }
-                    display.WritePixels(new Int32Rect(0, 0, fontWidth, fontHeight), data, fontWidth / 2, x * fontWidth, y * fontHeight);
-                });
+            CheckBounds(x, y);
+            buffer[y, x] = charData;
+            Draw(x, y);
         }
 
         public void Close()
@@ -94,6 +219,37 @@ namespace Tui
                     window.Close();
                     Dispatcher.ExitAllFrames();
                 });
+        }
+
+        private void CheckBounds(int x, int y)
+        {
+            if (x < 0 || x >= Width)
+            {
+                throw new ArgumentOutOfRangeException("x", x, "x must be between 0 and Width - 1.");
+            }
+            if (y < 0 || y >= Height)
+            {
+                throw new ArgumentOutOfRangeException("y", y, "y must be between 0 and Height - 1.");
+            }
+        }
+
+        private void Draw(int x, int y)
+        {
+            window.Dispatcher.InvokeAsync(() =>
+            {
+                byte[] data = new byte[fontWidth / 2 * fontHeight];
+                font.CopyPixels(new Int32Rect(fontWidth * buffer[y, x].CharacterByte, 0, fontWidth, fontHeight), data, fontWidth / 2, 0);
+                // output = (font & !foreground) ^ (font | background)
+                byte a = (byte)(~(int)buffer[y, x].Foreground & 0x0F);
+                a |= (byte)(a << 4);
+                byte b = (byte)((int)buffer[y, x].Background & 0x0F);
+                b |= (byte)(b << 4);
+                for (int i = 0; i < data.Length; i++)
+                {
+                    data[i] = (byte)((data[i] & a) ^ (data[i] | b));
+                }
+                display.WritePixels(new Int32Rect(0, 0, fontWidth, fontHeight), data, fontWidth / 2, x * fontWidth, y * fontHeight);
+            });
         }
 
         static BitmapPalette CreateDefaultPalette()
