@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,6 +20,8 @@ namespace Tui
         int fontWidth;
         int fontHeight;
         CharData[,] buffer;
+        BlockingCollection<Action> eventQueue;
+        bool closing;
 
         public int Width
         {
@@ -31,6 +34,8 @@ namespace Tui
             get;
             private set;
         }
+
+        public event EventHandler Closing;
 
         public Screen() : this(80, 25)
         {
@@ -67,6 +72,7 @@ namespace Tui
                     window.image.Width = width * fontWidth;
                     window.image.Height = height * fontHeight;
                     window.SizeToContent = SizeToContent.WidthAndHeight;
+                    window.Closing += (s, e) => eventQueue.Add(() => OnClosing(new EventArgs()));
                     window.Show();
                     tcs.SetResult(null);
                     Dispatcher.Run();
@@ -86,6 +92,7 @@ namespace Tui
                     buffer[y, x].Foreground = TextColor.LightGray;
                 }
             }
+            eventQueue = new BlockingCollection<Action>();
             tcs.Task.Wait();
         }
 
@@ -212,7 +219,35 @@ namespace Tui
             Draw(x, y);
         }
 
+        public void Run()
+        {
+            while (!closing)
+            {
+                Action action = eventQueue.Take();
+                action();
+            }
+            CloseWindow();
+        }
+
         public void Close()
+        {
+            closing = true;
+        }
+
+        protected virtual void OnClosing(EventArgs e)
+        {
+            EventHandler closing = Closing;
+            if (closing != null)
+            {
+                closing(this, e);
+            }
+            else
+            {
+                Close();
+            }
+        }
+
+        private void CloseWindow()
         {
             window.Dispatcher.Invoke(() =>
                 {
