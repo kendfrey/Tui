@@ -219,6 +219,21 @@ namespace Tui
             Draw(x, y);
         }
 
+        public Timer StartTimer(TimeSpan interval)
+        {
+            Timer timer = new Timer();
+            System.Timers.Timer internalTimer = new System.Timers.Timer(interval.TotalMilliseconds);
+            timer.InternalTimer = internalTimer;
+            internalTimer.Elapsed += (s, e) => eventQueue.Add(() => timer.OnTick(new EventArgs()));
+            internalTimer.Start();
+            return timer;
+        }
+
+        public void StopTimer(Timer timer)
+        {
+            timer.InternalTimer.Stop();
+        }
+
         public void Run()
         {
             while (!closing)

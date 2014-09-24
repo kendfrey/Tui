@@ -52,6 +52,7 @@
       <DependentUpon>ScreenWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="TextColor.cs" />
+    <Compile Include="Timer.cs" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="ScreenWindow.xaml">
