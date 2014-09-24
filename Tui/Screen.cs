@@ -219,6 +219,24 @@ namespace Tui
             Draw(x, y);
         }
 
+        public void WriteString(string str, int x, int y)
+        {
+            for (int i = 0; i < str.Length; i++)
+            {
+                WriteChar(str[i], x, y);
+                x++;
+                if (x >= Width)
+                {
+                    x = 0;
+                    y++;
+                    if (y >= Height)
+                    {
+                        y = 0;
+                    }
+                }
+            }
+        }
+
         public Timer StartTimer(TimeSpan interval)
         {
             Timer timer = new Timer();
