@@ -51,7 +51,7 @@ namespace Tui
             {
                 throw new ArgumentOutOfRangeException("height", height, "height must not be negative.");
             }
-            TaskCompletionSource<object> tcs = new TaskCompletionSource<object>();
+            ManualResetEvent windowInitialized = new ManualResetEvent(false);
             Thread windowThread = new Thread(() =>
                 {
                     window = new ScreenWindow();
@@ -74,7 +74,7 @@ namespace Tui
                     window.SizeToContent = SizeToContent.WidthAndHeight;
                     window.Closing += (s, e) => eventQueue.Add(() => OnClosing(new EventArgs()));
                     window.Show();
-                    tcs.SetResult(null);
+                    windowInitialized.Set();
                     Dispatcher.Run();
                 });
             windowThread.SetApartmentState(ApartmentState.STA);
@@ -93,7 +93,7 @@ namespace Tui
                 }
             }
             eventQueue = new BlockingCollection<Action>();
-            tcs.Task.Wait();
+            windowInitialized.WaitOne();
         }
 
         public void Clear()
