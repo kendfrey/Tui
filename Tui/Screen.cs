@@ -52,31 +52,7 @@ namespace Tui
                 throw new ArgumentOutOfRangeException("height", height, "height must not be negative.");
             }
             ManualResetEvent windowInitialized = new ManualResetEvent(false);
-            Thread windowThread = new Thread(() =>
-                {
-                    window = new ScreenWindow();
-                    BitmapPalette palette = CreateDefaultPalette();
-                    font = new FormatConvertedBitmap(new BitmapImage(new Uri("pack://application:,,,/Tui;component/Terminal.png")), PixelFormats.Indexed4, palette, 0);
-                    if (font.PixelWidth % 512 != 0)
-                    {
-                        throw new ArgumentException("The font image must contain 256 glyphs and each glyph must be a multiple of 2 pixels wide.");
-                    }
-                    fontWidth = font.PixelWidth / 256;
-                    fontHeight = font.PixelHeight;
-                    int imageWidth = width * fontWidth;
-                    int imageHeight = height * fontHeight;
-                    display = new WriteableBitmap(imageWidth, imageHeight, 96, 96, PixelFormats.Indexed4, palette);
-                    byte[] data = new byte[imageWidth / 2 * imageHeight];
-                    display.WritePixels(new Int32Rect(0, 0, imageWidth, imageHeight), data, imageWidth / 2, 0, 0);
-                    window.image.Source = display;
-                    window.image.Width = width * fontWidth;
-                    window.image.Height = height * fontHeight;
-                    window.SizeToContent = SizeToContent.WidthAndHeight;
-                    window.Closing += (s, e) => eventQueue.Add(() => OnClosing(new EventArgs()));
-                    window.Show();
-                    windowInitialized.Set();
-                    Dispatcher.Run();
-                });
+            Thread windowThread = new Thread(() => InitializeWindow(width, height, windowInitialized));
             windowThread.SetApartmentState(ApartmentState.STA);
             windowThread.IsBackground = true;
             windowThread.Start();
@@ -237,21 +213,6 @@ namespace Tui
             }
         }
 
-        public Timer StartTimer(TimeSpan interval)
-        {
-            Timer timer = new Timer();
-            System.Timers.Timer internalTimer = new System.Timers.Timer(interval.TotalMilliseconds);
-            timer.InternalTimer = internalTimer;
-            internalTimer.Elapsed += (s, e) => eventQueue.Add(() => timer.OnTick(new EventArgs()));
-            internalTimer.Start();
-            return timer;
-        }
-
-        public void StopTimer(Timer timer)
-        {
-            timer.InternalTimer.Stop();
-        }
-
         public void Run()
         {
             while (!closing)
@@ -267,6 +228,11 @@ namespace Tui
             closing = true;
         }
 
+        internal void PushEvent(Action action)
+        {
+            eventQueue.Add(action);
+        }
+
         protected virtual void OnClosing(EventArgs e)
         {
             EventHandler closing = Closing;
@@ -278,6 +244,37 @@ namespace Tui
             {
                 Close();
             }
+        }
+
+        private void InitializeWindow(int width, int height, ManualResetEvent windowInitialized)
+        {
+            window = new ScreenWindow();
+            BitmapPalette palette = CreateDefaultPalette();
+            font = new FormatConvertedBitmap(new BitmapImage(new Uri("pack://application:,,,/Tui;component/Terminal.png")), PixelFormats.Indexed4, palette, 0);
+            if (font.PixelWidth % 512 != 0)
+            {
+                throw new ArgumentException("The font image must contain 256 glyphs and each glyph must be a multiple of 2 pixels wide.");
+            }
+            fontWidth = font.PixelWidth / 256;
+            fontHeight = font.PixelHeight;
+            int imageWidth = width * fontWidth;
+            int imageHeight = height * fontHeight;
+            display = new WriteableBitmap(imageWidth, imageHeight, 96, 96, PixelFormats.Indexed4, palette);
+            byte[] data = new byte[imageWidth / 2 * imageHeight];
+            display.WritePixels(new Int32Rect(0, 0, imageWidth, imageHeight), data, imageWidth / 2, 0, 0);
+            window.image.Source = display;
+            window.image.Width = width * fontWidth;
+            window.image.Height = height * fontHeight;
+            window.SizeToContent = SizeToContent.WidthAndHeight;
+            window.Closing += window_Closing;
+            window.Show();
+            windowInitialized.Set();
+            Dispatcher.Run();
+        }
+
+        private void window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            PushEvent(() => OnClosing(new EventArgs()));
         }
 
         private void CloseWindow()
