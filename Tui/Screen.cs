@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -22,6 +23,9 @@ namespace Tui
         CharData[,] buffer;
         BlockingCollection<Action> eventQueue;
         bool closing;
+        KeyEventArgs keyArgs;
+        TextCompositionEventArgs textArgs;
+        Dictionary<Key, TextCompositionEventArgs> pressedKeys;
 
         public int Width
         {
@@ -34,6 +38,10 @@ namespace Tui
             get;
             private set;
         }
+
+        public event EventHandler<KeyboardInputEventArgs> KeyboardInput;
+
+        public event EventHandler<KeyboardInputEventArgs> KeyboardInputReleased;
 
         public event EventHandler Closing;
 
@@ -69,6 +77,7 @@ namespace Tui
                 }
             }
             eventQueue = new BlockingCollection<Action>();
+            pressedKeys = new Dictionary<Key, TextCompositionEventArgs>();
             windowInitialized.WaitOne();
         }
 
@@ -246,6 +255,24 @@ namespace Tui
             }
         }
 
+        protected virtual void OnKeyboardInput(KeyboardInputEventArgs e)
+        {
+            EventHandler<KeyboardInputEventArgs> keyboardInput = KeyboardInput;
+            if (keyboardInput != null)
+            {
+                keyboardInput(this, e);
+            }
+        }
+
+        protected virtual void OnKeyboardInputReleased(KeyboardInputEventArgs e)
+        {
+            EventHandler<KeyboardInputEventArgs> keyboardInputReleased = KeyboardInputReleased;
+            if (keyboardInputReleased != null)
+            {
+                keyboardInputReleased(this, e);
+            }
+        }
+
         private void InitializeWindow(int width, int height, ManualResetEvent windowInitialized)
         {
             window = new ScreenWindow();
@@ -266,10 +293,87 @@ namespace Tui
             window.image.Width = width * fontWidth;
             window.image.Height = height * fontHeight;
             window.SizeToContent = SizeToContent.WidthAndHeight;
+            window.TextInput += window_TextInput;
+            window.KeyDown += window_KeyDown;
+            window.KeyUp += window_KeyUp;
             window.Closing += window_Closing;
             window.Show();
             windowInitialized.Set();
             Dispatcher.Run();
+        }
+
+        private void window_TextInput(object sender, TextCompositionEventArgs e)
+        {
+            if (textArgs != null)
+            {
+                ProcessKeyboardInput();
+            }
+            textArgs = e;
+            window.Dispatcher.InvokeAsync(ProcessKeyboardInput, DispatcherPriority.Input);
+        }
+
+        private void window_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (keyArgs != null)
+            {
+                ProcessKeyboardInput();
+            }
+            keyArgs = e;
+            window.Dispatcher.InvokeAsync(ProcessKeyboardInput, DispatcherPriority.Input);
+        }
+
+        private void window_KeyUp(object sender, KeyEventArgs e)
+        {
+            TextCompositionEventArgs textArgs = pressedKeys[(Key)e.Key];
+            pressedKeys.Remove((Key)e.Key);
+            ProcessKeyBoardInputReleased(textArgs, e);
+        }
+
+        private void ProcessKeyboardInput()
+        {
+            KeyboardInputEventArgs e = new KeyboardInputEventArgs();
+            if (textArgs != null)
+            {
+                e.HasText = true;
+                e.Text = textArgs.Text;
+            }
+            if (keyArgs != null)
+            {
+                e.HasKey = true;
+                e.Key = (Key)keyArgs.Key;
+                if (!pressedKeys.ContainsKey(e.Key))
+                {
+                    pressedKeys.Add(e.Key, textArgs);
+                }
+                else
+                {
+                    e.IsRepeatKey = true;
+                }
+            }
+            PushEvent(() => OnKeyboardInput(e));
+            if (keyArgs == null)
+            {
+                ProcessKeyBoardInputReleased(textArgs, null);
+            }
+            textArgs = null;
+            keyArgs = null;
+        }
+
+        private void ProcessKeyBoardInputReleased(TextCompositionEventArgs textArgs, KeyEventArgs keyArgs)
+        {
+            KeyboardInputEventArgs args = new KeyboardInputEventArgs();
+            if (textArgs != null)
+            {
+                args.HasText = true;
+                args.Text = textArgs.Text;
+            }
+            if (keyArgs != null)
+            {
+                args.HasKey = true;
+                args.Key = (Key)keyArgs.Key;
+                args.IsRepeatKey = keyArgs.IsRepeat;
+            }
+            PushEvent(() => OnKeyboardInputReleased(args));
         }
 
         private void window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
