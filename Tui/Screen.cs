@@ -17,7 +17,7 @@ namespace Tui
     {
         ScreenWindow window;
         WriteableBitmap display;
-        BitmapSource font;
+        byte[] font;
         int fontWidth;
         int fontHeight;
         CharData[,] buffer;
@@ -97,68 +97,81 @@ namespace Tui
 
         public void FillChar(char character, Rectangle rectangle)
         {
-            for (int y = 0; y < rectangle.Height; y++)
+            for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
             {
-                for (int x = 0; x < rectangle.Width; x++)
+                for (int x = rectangle.X; x < rectangle.X + rectangle.Width; x++)
                 {
-                    WriteChar(character, rectangle.X + x, rectangle.Y + y);
+                    CheckBounds(x, y);
+                    buffer[y, x].Character = character;
                 }
             }
+            Draw(rectangle);
         }
 
         public void FillCharByte(byte character, Rectangle rectangle)
         {
-            for (int y = 0; y < rectangle.Height; y++)
+            for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
             {
-                for (int x = 0; x < rectangle.Width; x++)
+                for (int x = rectangle.X; x < rectangle.X + rectangle.Width; x++)
                 {
-                    WriteCharByte(character, rectangle.X + x, rectangle.Y + y);
+                    CheckBounds(x, y);
+                    buffer[y, x].CharacterByte = character;
                 }
             }
+            Draw(rectangle);
         }
 
         public void FillColors(TextColor foreground, TextColor background, Rectangle rectangle)
         {
-            for (int y = 0; y < rectangle.Height; y++)
+            for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
             {
-                for (int x = 0; x < rectangle.Width; x++)
+                for (int x = rectangle.X; x < rectangle.X + rectangle.Width; x++)
                 {
-                    WriteColors(foreground, background, rectangle.X + x, rectangle.Y + y);
+                    CheckBounds(x, y);
+                    buffer[y, x].Foreground = foreground;
+                    buffer[y, x].Background = background;
                 }
             }
+            Draw(rectangle);
         }
 
         public void FillForeground(TextColor foreground, Rectangle rectangle)
         {
-            for (int y = 0; y < rectangle.Height; y++)
+            for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
             {
-                for (int x = 0; x < rectangle.Width; x++)
+                for (int x = rectangle.X; x < rectangle.X + rectangle.Width; x++)
                 {
-                    WriteForeground(foreground, rectangle.X + x, rectangle.Y + y);
+                    CheckBounds(x, y);
+                    buffer[y, x].Foreground = foreground;
                 }
             }
+            Draw(rectangle);
         }
 
         public void FillBackground(TextColor background, Rectangle rectangle)
         {
-            for (int y = 0; y < rectangle.Height; y++)
+            for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
             {
-                for (int x = 0; x < rectangle.Width; x++)
+                for (int x = rectangle.X; x < rectangle.X + rectangle.Width; x++)
                 {
-                    WriteBackground(background, rectangle.X + x, rectangle.Y + y);
+                    CheckBounds(x, y);
+                    buffer[y, x].Background = background;
                 }
             }
+            Draw(rectangle);
         }
 
         public void FillCharData(CharData charData, Rectangle rectangle)
         {
-            for (int y = 0; y < rectangle.Height; y++)
+            for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
             {
-                for (int x = 0; x < rectangle.Width; x++)
+                for (int x = rectangle.X; x < rectangle.X + rectangle.Width; x++)
                 {
-                    WriteCharData(charData, rectangle.X + x, rectangle.Y + y);
+                    CheckBounds(x, y);
+                    buffer[y, x] = charData;
                 }
             }
+            Draw(rectangle);
         }
 
         public void WriteChar(char character, int x, int y)
@@ -277,13 +290,18 @@ namespace Tui
         {
             window = new ScreenWindow();
             BitmapPalette palette = CreateDefaultPalette();
-            font = new FormatConvertedBitmap(new BitmapImage(new Uri("pack://application:,,,/Tui;component/Terminal.png")), PixelFormats.Indexed4, palette, 0);
-            if (font.PixelWidth % 512 != 0)
+            BitmapSource fontBitmap = new FormatConvertedBitmap(new FormatConvertedBitmap(new BitmapImage(new Uri("pack://application:,,,/Tui;component/Terminal.png")), PixelFormats.BlackWhite, null, 0), PixelFormats.Indexed4, palette, 0);
+            if (fontBitmap.PixelWidth % 512 != 0)
             {
                 throw new ArgumentException("The font image must contain 256 glyphs and each glyph must be a multiple of 2 pixels wide.");
             }
-            fontWidth = font.PixelWidth / 256;
-            fontHeight = font.PixelHeight;
+            fontWidth = fontBitmap.PixelWidth / 256;
+            fontHeight = fontBitmap.PixelHeight;
+            font = new byte[fontWidth / 2 * fontHeight * 256];
+            for (int i = 0; i < 256; i++)
+            {
+                fontBitmap.CopyPixels(new Int32Rect(fontWidth * i, 0, fontWidth, fontHeight), font, fontWidth / 2, fontWidth / 2 * fontHeight * i);
+            }
             int imageWidth = width * fontWidth;
             int imageHeight = height * fontHeight;
             display = new WriteableBitmap(imageWidth, imageHeight, 96, 96, PixelFormats.Indexed4, palette);
@@ -404,20 +422,45 @@ namespace Tui
 
         private void Draw(int x, int y)
         {
+            Draw(new Rectangle(x, y, 1, 1));
+        }
+
+        private void Draw(Rectangle rectangle)
+        {
             window.Dispatcher.InvokeAsync(() =>
             {
                 byte[] data = new byte[fontWidth / 2 * fontHeight];
-                font.CopyPixels(new Int32Rect(fontWidth * buffer[y, x].CharacterByte, 0, fontWidth, fontHeight), data, fontWidth / 2, 0);
-                // output = (font & !foreground) ^ (font | background)
-                byte a = (byte)(~(int)buffer[y, x].Foreground & 0x0F);
-                a |= (byte)(a << 4);
-                byte b = (byte)((int)buffer[y, x].Background & 0x0F);
-                b |= (byte)(b << 4);
-                for (int i = 0; i < data.Length; i++)
+                unsafe
                 {
-                    data[i] = (byte)((data[i] & a) ^ (data[i] | b));
+                    display.Lock();
+                    byte* pBuffer = (byte*)display.BackBuffer;
+                    int bufferStride = display.BackBufferStride;
+                    for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
+                    {
+                        for (int x = rectangle.X; x < rectangle.X + rectangle.Width; x++)
+                        {
+                            Array.Copy(font, fontWidth / 2 * fontHeight * buffer[y, x].CharacterByte, data, 0, fontWidth / 2 * fontHeight);
+                            // output = (font & !foreground) ^ (font | background)
+                            byte a = (byte)(~(int)buffer[y, x].Foreground & 0x0F);
+                            a |= (byte)(a << 4);
+                            byte b = (byte)((int)buffer[y, x].Background & 0x0F);
+                            b |= (byte)(b << 4);
+                            for (int i = 0; i < data.Length; i++)
+                            {
+                                data[i] = (byte)((data[i] & a) ^ (data[i] | b));
+                            }
+                            for (int py = 0; py < fontHeight; py++)
+                            {
+                                for (int px = 0; px < fontWidth / 2; px++)
+                                {
+                                    pBuffer[(py + y * fontHeight) * bufferStride + (px + x * fontWidth / 2)] = data[py * fontWidth / 2 + px];
+                                }
+                            }
+                        }
+                    }
+                    display.AddDirtyRect(new Int32Rect(rectangle.X * fontWidth, rectangle.Y * fontHeight, rectangle.Width * fontWidth, rectangle.Height * fontHeight));
+                    display.Unlock();
                 }
-                display.WritePixels(new Int32Rect(0, 0, fontWidth, fontHeight), data, fontWidth / 2, x * fontWidth, y * fontHeight);
             });
         }
 
