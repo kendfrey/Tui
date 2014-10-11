@@ -13,6 +13,20 @@ namespace Tui
             Encoding = Encoding.GetEncoding(437);
         }
 
+        public CharData(char character, TextColor foreground, TextColor background) : this()
+        {
+            Character = character;
+            Foreground = foreground;
+            Background = background;
+        }
+
+        public CharData(byte characterByte, TextColor foreground, TextColor background) : this()
+        {
+            CharacterByte = characterByte;
+            Foreground = foreground;
+            Background = background;
+        }
+
         internal static Encoding Encoding
         {
             get;
