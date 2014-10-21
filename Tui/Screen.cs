@@ -342,9 +342,12 @@ namespace Tui
 
         private void window_KeyUp(object sender, KeyEventArgs e)
         {
-            TextCompositionEventArgs textArgs = pressedKeys[(Key)e.Key];
-            pressedKeys.Remove((Key)e.Key);
-            ProcessKeyBoardInputReleased(textArgs, e);
+            if (pressedKeys.ContainsKey((Key)e.Key))
+            {
+                TextCompositionEventArgs textArgs = pressedKeys[(Key)e.Key];
+                pressedKeys.Remove((Key)e.Key);
+                ProcessKeyBoardInputReleased(textArgs, e);
+            }
         }
 
         private void ProcessKeyboardInput()
