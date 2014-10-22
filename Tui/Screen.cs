@@ -235,6 +235,37 @@ namespace Tui
             }
         }
 
+        public void WriteBuffer(CharData[,] source, int sourceX, int sourceY, Rectangle rectangle)
+        {
+            for (int y = 0; y < rectangle.Height; y++)
+            {
+                for (int x = 0; x < rectangle.Width; x++)
+                {
+                    CheckBounds(x + rectangle.X, y + rectangle.Y);
+                    buffer[y + rectangle.Y, x + rectangle.X] = source[y + sourceY, x + sourceX];
+                }
+            }
+            Draw(rectangle);
+        }
+
+        public CharData GetCharData(int x, int y)
+        {
+            CheckBounds(x, y);
+            return buffer[y, x];
+        }
+
+        public void GetBuffer(CharData[,] destination, int destinationX, int destinationY, Rectangle rectangle)
+        {
+            for (int y = 0; y < rectangle.Height; y++)
+            {
+                for (int x = 0; x < rectangle.Width; x++)
+                {
+                    CheckBounds(x + rectangle.X, y + rectangle.Y);
+                    destination[y + destinationY, x + destinationX] = buffer[y + rectangle.Y, x + rectangle.X];
+                }
+            }
+        }
+
         public void Run()
         {
             while (!closing)
