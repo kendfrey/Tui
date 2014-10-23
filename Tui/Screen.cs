@@ -39,6 +39,18 @@ namespace Tui
             private set;
         }
 
+        public string Title
+        {
+            get
+            {
+                return window.Title;
+            }
+            set
+            {
+                window.Dispatcher.Invoke(() => window.Title = value);
+            }
+        }
+
         public event EventHandler<KeyboardInputEventArgs> KeyboardInput;
 
         public event EventHandler<KeyboardInputEventArgs> KeyboardInputReleased;
