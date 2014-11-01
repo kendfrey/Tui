@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -57,11 +58,19 @@ namespace Tui
 
         public event EventHandler Closing;
 
-        public Screen() : this(80, 25)
+        public Screen() : this(null)
         {
         }
 
-        public Screen(int width, int height)
+        public Screen(string fontPath) : this(80, 25, fontPath)
+        {
+        }
+
+        public Screen(int width, int height) : this(width, height, null)
+        {
+        }
+
+        public Screen(int width, int height, string fontPath)
         {
             if (width < 0)
             {
@@ -72,7 +81,7 @@ namespace Tui
                 throw new ArgumentOutOfRangeException("height", height, "height must not be negative.");
             }
             ManualResetEvent windowInitialized = new ManualResetEvent(false);
-            Thread windowThread = new Thread(() => InitializeWindow(width, height, windowInitialized));
+            Thread windowThread = new Thread(() => InitializeWindow(width, height, fontPath, windowInitialized));
             windowThread.SetApartmentState(ApartmentState.STA);
             windowThread.IsBackground = true;
             windowThread.Start();
@@ -329,11 +338,20 @@ namespace Tui
             }
         }
 
-        private void InitializeWindow(int width, int height, ManualResetEvent windowInitialized)
+        private void InitializeWindow(int width, int height, string fontPath, ManualResetEvent windowInitialized)
         {
             window = new ScreenWindow();
+            string uri;
+            if (fontPath == null)
+            {
+                uri = "pack://application:,,,/Tui;component/Terminal.png";
+            }
+            else
+            {
+                uri = "file://" + Path.GetFullPath(fontPath);
+            }
             BitmapPalette palette = CreateDefaultPalette();
-            BitmapSource fontBitmap = new FormatConvertedBitmap(new FormatConvertedBitmap(new BitmapImage(new Uri("pack://application:,,,/Tui;component/Terminal.png")), PixelFormats.BlackWhite, null, 0), PixelFormats.Indexed4, palette, 0);
+            BitmapSource fontBitmap = new FormatConvertedBitmap(new FormatConvertedBitmap(new BitmapImage(new Uri(uri)), PixelFormats.BlackWhite, null, 0), PixelFormats.Indexed4, palette, 0);
             if (fontBitmap.PixelWidth % 512 != 0)
             {
                 throw new ArgumentException("The font image must contain 256 glyphs and each glyph must be a multiple of 2 pixels wide.");
