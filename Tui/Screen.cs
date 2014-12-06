@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -52,11 +53,25 @@ namespace Tui
             }
         }
 
+        public bool UserResizable
+        {
+            get
+            {
+                return window.ResizeMode == ResizeMode.CanResize;
+            }
+            set
+            {
+                window.Dispatcher.Invoke(() => window.ResizeMode = value ? ResizeMode.CanResize : ResizeMode.CanMinimize);
+            }
+        }
+
         public event EventHandler<KeyboardInputEventArgs> KeyboardInput;
 
         public event EventHandler<KeyboardInputEventArgs> KeyboardInputReleased;
 
         public event EventHandler Closing;
+
+        public event EventHandler<ResizeEventArgs> Resized;
 
         public Screen() : this(null)
         {
@@ -85,8 +100,6 @@ namespace Tui
             windowThread.SetApartmentState(ApartmentState.STA);
             windowThread.IsBackground = true;
             windowThread.Start();
-            Width = width;
-            Height = height;
             buffer = new CharData[height, width];
             for (int y = 0; y < height; y++)
             {
@@ -297,6 +310,19 @@ namespace Tui
             CloseWindow();
         }
 
+        public void Resize(int width, int height)
+        {
+            if (width < 0)
+            {
+                throw new ArgumentOutOfRangeException("width", width, "width must not be negative.");
+            }
+            if (height < 0)
+            {
+                throw new ArgumentOutOfRangeException("height", height, "height must not be negative.");
+            }
+            window.Dispatcher.InvokeAsync(() => ResizeImage(width, height));
+        }
+
         public void Close()
         {
             closing = true;
@@ -338,6 +364,15 @@ namespace Tui
             }
         }
 
+        protected virtual void OnResized(ResizeEventArgs e)
+        {
+            EventHandler<ResizeEventArgs> resized = Resized;
+            if (resized != null)
+            {
+                resized(this, e);
+            }
+        }
+
         private void InitializeWindow(int width, int height, string fontPath, ManualResetEvent windowInitialized)
         {
             window = new ScreenWindow();
@@ -363,20 +398,16 @@ namespace Tui
             {
                 fontBitmap.CopyPixels(new Int32Rect(fontWidth * i, 0, fontWidth, fontHeight), font, fontWidth / 2, fontWidth / 2 * fontHeight * i);
             }
-            int imageWidth = width * fontWidth;
-            int imageHeight = height * fontHeight;
-            display = new WriteableBitmap(imageWidth, imageHeight, 96, 96, PixelFormats.Indexed4, palette);
-            byte[] data = new byte[imageWidth / 2 * imageHeight];
-            display.WritePixels(new Int32Rect(0, 0, imageWidth, imageHeight), data, imageWidth / 2, 0, 0);
-            window.image.Source = display;
-            window.image.Width = width * fontWidth;
-            window.image.Height = height * fontHeight;
+            ResizeImage(width, height);
             window.SizeToContent = SizeToContent.WidthAndHeight;
             window.TextInput += window_TextInput;
             window.KeyDown += window_KeyDown;
             window.KeyUp += window_KeyUp;
+            window.SizeChanged += window_SizeChanged;
             window.Closing += window_Closing;
             window.Show();
+            HwndSource hwndSource = HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);
+            hwndSource.AddHook(window_WndProc);
             windowInitialized.Set();
             Dispatcher.Run();
         }
@@ -458,9 +489,66 @@ namespace Tui
             PushEvent(() => OnKeyboardInputReleased(args));
         }
 
+        private void window_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            ResizeEventArgs args = new ResizeEventArgs();
+            args.NewWidth = (int)window.grid.ActualWidth / fontWidth;
+            args.NewHeight = (int)window.grid.ActualHeight / fontHeight;
+            if (args.NewWidth != Width || args.NewHeight != Height)
+            {
+                ResizeImage(args.NewWidth, args.NewHeight);
+                PushEvent(() => OnResized(args));
+            }
+        }
+
         private void window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             PushEvent(() => OnClosing(new EventArgs()));
+        }
+
+        private IntPtr window_WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            const int WM_SIZEMOVE = 0x0232;
+            switch (msg)
+            {
+                case WM_SIZEMOVE:
+                    window.SizeToContent = SizeToContent.WidthAndHeight;
+                    break;
+            }
+            return IntPtr.Zero;
+        }
+
+        public void ResizeImage(int width, int height)
+        {
+            int previousWidth = Width;
+            int previousHeight = Height;
+            Width = width;
+            Height = height;
+            int imageWidth = width * fontWidth;
+            int imageHeight = height * fontHeight;
+            CharData[,] newBuffer = new CharData[height, width];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    if (x < previousWidth && y < previousHeight)
+                    {
+                        newBuffer[y, x] = buffer[y, x];
+                    }
+                    else
+                    {
+                        newBuffer[y, x].CharacterByte = 0;
+                        newBuffer[y, x].Background = TextColor.Black;
+                        newBuffer[y, x].Foreground = TextColor.LightGray;
+                    }
+                }
+            }
+            buffer = newBuffer;
+            display = new WriteableBitmap(imageWidth, imageHeight, 96, 96, PixelFormats.Indexed4, CreateDefaultPalette());
+            window.image.Source = display;
+            window.image.Width = imageWidth;
+            window.image.Height = imageHeight;
+            Draw(new Rectangle(0, 0, width, height));
         }
 
         private void CloseWindow()
@@ -491,41 +579,43 @@ namespace Tui
 
         private void Draw(Rectangle rectangle)
         {
-            window.Dispatcher.InvokeAsync(() =>
+            if (!window.Dispatcher.CheckAccess())
             {
-                byte[] data = new byte[fontWidth / 2 * fontHeight];
-                unsafe
+                window.Dispatcher.InvokeAsync(() => Draw(rectangle));
+                return;
+            }
+            byte[] data = new byte[fontWidth / 2 * fontHeight];
+            unsafe
+            {
+                display.Lock();
+                byte* pBuffer = (byte*)display.BackBuffer;
+                int bufferStride = display.BackBufferStride;
+                for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
                 {
-                    display.Lock();
-                    byte* pBuffer = (byte*)display.BackBuffer;
-                    int bufferStride = display.BackBufferStride;
-                    for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
+                    for (int x = rectangle.X; x < rectangle.X + rectangle.Width; x++)
                     {
-                        for (int x = rectangle.X; x < rectangle.X + rectangle.Width; x++)
+                        Array.Copy(font, fontWidth / 2 * fontHeight * buffer[y, x].CharacterByte, data, 0, fontWidth / 2 * fontHeight);
+                        // output = (font & !foreground) ^ (font | background)
+                        byte a = (byte)(~(int)buffer[y, x].Foreground & 0x0F);
+                        a |= (byte)(a << 4);
+                        byte b = (byte)((int)buffer[y, x].Background & 0x0F);
+                        b |= (byte)(b << 4);
+                        for (int i = 0; i < data.Length; i++)
                         {
-                            Array.Copy(font, fontWidth / 2 * fontHeight * buffer[y, x].CharacterByte, data, 0, fontWidth / 2 * fontHeight);
-                            // output = (font & !foreground) ^ (font | background)
-                            byte a = (byte)(~(int)buffer[y, x].Foreground & 0x0F);
-                            a |= (byte)(a << 4);
-                            byte b = (byte)((int)buffer[y, x].Background & 0x0F);
-                            b |= (byte)(b << 4);
-                            for (int i = 0; i < data.Length; i++)
+                            data[i] = (byte)((data[i] & a) ^ (data[i] | b));
+                        }
+                        for (int py = 0; py < fontHeight; py++)
+                        {
+                            for (int px = 0; px < fontWidth / 2; px++)
                             {
-                                data[i] = (byte)((data[i] & a) ^ (data[i] | b));
-                            }
-                            for (int py = 0; py < fontHeight; py++)
-                            {
-                                for (int px = 0; px < fontWidth / 2; px++)
-                                {
-                                    pBuffer[(py + y * fontHeight) * bufferStride + (px + x * fontWidth / 2)] = data[py * fontWidth / 2 + px];
-                                }
+                                pBuffer[(py + y * fontHeight) * bufferStride + (px + x * fontWidth / 2)] = data[py * fontWidth / 2 + px];
                             }
                         }
                     }
-                    display.AddDirtyRect(new Int32Rect(rectangle.X * fontWidth, rectangle.Y * fontHeight, rectangle.Width * fontWidth, rectangle.Height * fontHeight));
-                    display.Unlock();
                 }
-            });
+                display.AddDirtyRect(new Int32Rect(rectangle.X * fontWidth, rectangle.Y * fontHeight, rectangle.Width * fontWidth, rectangle.Height * fontHeight));
+                display.Unlock();
+            }
         }
 
         static BitmapPalette CreateDefaultPalette()

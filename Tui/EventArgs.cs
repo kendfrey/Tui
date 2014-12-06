@@ -39,4 +39,19 @@ namespace Tui
             set;
         }
     }
+
+    public class ResizeEventArgs : EventArgs
+    {
+        public int NewWidth
+        {
+            get;
+            set;
+        }
+
+        public int NewHeight
+        {
+            get;
+            set;
+        }
+    }
 }
