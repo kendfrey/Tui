@@ -28,6 +28,8 @@ namespace Tui
         KeyEventArgs keyArgs;
         TextCompositionEventArgs textArgs;
         Dictionary<Key, TextCompositionEventArgs> pressedKeys;
+        string title;
+        DisplayState displayState;
 
         public int Width
         {
@@ -45,23 +47,36 @@ namespace Tui
         {
             get
             {
-                return window.Title;
+                return title;
             }
             set
             {
-                window.Dispatcher.Invoke(() => window.Title = value);
+                title = value;
+                window.Dispatcher.Invoke(() => window.Title = title);
             }
         }
 
-        public bool UserResizable
+        public DisplayState DisplayState
         {
             get
             {
-                return window.ResizeMode == ResizeMode.CanResize;
+                return displayState;
             }
             set
             {
-                window.Dispatcher.Invoke(() => window.ResizeMode = value ? ResizeMode.CanResize : ResizeMode.CanMinimize);
+                displayState = value;
+                window.Dispatcher.Invoke(() =>
+                    {
+                        switch (displayState)
+                        {
+                            case DisplayState.FixedWindow:
+                                window.ResizeMode = ResizeMode.CanMinimize;
+                                break;
+                            case DisplayState.Resizable:
+                                window.ResizeMode = ResizeMode.CanResize;
+                                break;
+                        }
+                    });
             }
         }
 
@@ -399,6 +414,8 @@ namespace Tui
                 fontBitmap.CopyPixels(new Int32Rect(fontWidth * i, 0, fontWidth, fontHeight), font, fontWidth / 2, fontWidth / 2 * fontHeight * i);
             }
             ResizeImage(width, height);
+            Title = "Tui";
+            DisplayState = DisplayState.FixedWindow;
             window.SizeToContent = SizeToContent.WidthAndHeight;
             window.TextInput += window_TextInput;
             window.KeyDown += window_KeyDown;
