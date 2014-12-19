@@ -508,6 +508,11 @@ namespace Tui
 
         private void window_SizeChanged(object sender, SizeChangedEventArgs e)
         {
+            if (window.SizeToContent == SizeToContent.WidthAndHeight)
+            {
+                // The image is what triggered the resize, so no reason to resize the image again.
+                //return;
+            }
             ResizeEventArgs args = new ResizeEventArgs();
             args.NewWidth = (int)window.grid.ActualWidth / fontWidth;
             args.NewHeight = (int)window.grid.ActualHeight / fontHeight;
