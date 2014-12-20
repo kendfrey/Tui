@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Tui
 {
-    public enum DisplayState
+    public enum DisplayMode
     {
         FixedWindow,
         Resizable

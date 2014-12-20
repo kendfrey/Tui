@@ -29,7 +29,7 @@ namespace Tui
         TextCompositionEventArgs textArgs;
         Dictionary<Key, TextCompositionEventArgs> pressedKeys;
         string title;
-        DisplayState displayState;
+        DisplayMode displayMode;
 
         public int Width
         {
@@ -56,23 +56,23 @@ namespace Tui
             }
         }
 
-        public DisplayState DisplayState
+        public DisplayMode DisplayMode
         {
             get
             {
-                return displayState;
+                return displayMode;
             }
             set
             {
-                displayState = value;
+                displayMode = value;
                 window.Dispatcher.Invoke(() =>
                     {
-                        switch (displayState)
+                        switch (displayMode)
                         {
-                            case DisplayState.FixedWindow:
+                            case DisplayMode.FixedWindow:
                                 window.ResizeMode = ResizeMode.CanMinimize;
                                 break;
-                            case DisplayState.Resizable:
+                            case DisplayMode.Resizable:
                                 window.ResizeMode = ResizeMode.CanResize;
                                 break;
                         }
@@ -415,7 +415,7 @@ namespace Tui
             }
             ResizeImage(width, height);
             Title = "Tui";
-            DisplayState = DisplayState.FixedWindow;
+            DisplayMode = DisplayMode.FixedWindow;
             window.SizeToContent = SizeToContent.WidthAndHeight;
             window.TextInput += window_TextInput;
             window.KeyDown += window_KeyDown;
