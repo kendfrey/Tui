@@ -9,6 +9,7 @@ namespace Tui
     public enum DisplayMode
     {
         FixedWindow,
-        Resizable
+        ResizableWindow,
+        Fullscreen
     }
 }

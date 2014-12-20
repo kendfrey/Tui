@@ -64,16 +64,32 @@ namespace Tui
             }
             set
             {
+                if (displayMode == value)
+                {
+                    return;
+                }
                 displayMode = value;
                 window.Dispatcher.Invoke(() =>
                     {
                         switch (displayMode)
                         {
                             case DisplayMode.FixedWindow:
+                                window.WindowStyle = WindowStyle.SingleBorderWindow;
+                                window.SizeToContent = SizeToContent.WidthAndHeight;
+                                window.WindowState = WindowState.Normal;
                                 window.ResizeMode = ResizeMode.CanMinimize;
                                 break;
-                            case DisplayMode.Resizable:
+                            case DisplayMode.ResizableWindow:
+                                window.WindowStyle = WindowStyle.SingleBorderWindow;
+                                window.SizeToContent = SizeToContent.WidthAndHeight;
+                                window.WindowState = WindowState.Normal;
                                 window.ResizeMode = ResizeMode.CanResize;
+                                break;
+                            case DisplayMode.Fullscreen:
+                                window.WindowStyle = WindowStyle.None;
+                                window.SizeToContent = SizeToContent.Manual;
+                                window.ResizeMode = ResizeMode.CanMinimize;
+                                window.WindowState = WindowState.Maximized;
                                 break;
                         }
                     });
