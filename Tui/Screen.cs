@@ -556,7 +556,7 @@ namespace Tui
             return IntPtr.Zero;
         }
 
-        public void ResizeImage(int width, int height)
+        private void ResizeImage(int width, int height)
         {
             int previousWidth = Width;
             int previousHeight = Height;
