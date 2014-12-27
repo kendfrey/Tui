@@ -10,6 +10,7 @@ namespace Tui
     {
         FixedWindow,
         ResizableWindow,
-        Fullscreen
+        Fullscreen,
+        FixedFullscreen
     }
 }

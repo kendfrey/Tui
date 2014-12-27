@@ -71,6 +71,7 @@ namespace Tui
                 displayMode = value;
                 window.Dispatcher.Invoke(() =>
                     {
+                        window.image.Stretch = Stretch.None;
                         window.WindowStyle = WindowStyle.SingleBorderWindow;
                         window.SizeToContent = SizeToContent.WidthAndHeight;
                         window.WindowState = WindowState.Normal;
@@ -86,6 +87,14 @@ namespace Tui
                                 window.WindowStyle = WindowStyle.None;
                                 window.SizeToContent = SizeToContent.Manual;
                                 window.WindowState = WindowState.Maximized;
+                                break;
+                            case DisplayMode.FixedFullscreen:
+                                window.WindowStyle = WindowStyle.None;
+                                window.SizeToContent = SizeToContent.Manual;
+                                window.WindowState = WindowState.Maximized;
+                                window.image.Stretch = Stretch.Fill;
+                                window.image.Width = double.NaN;
+                                window.image.Height = double.NaN;
                                 break;
                         }
                     });
@@ -520,9 +529,9 @@ namespace Tui
 
         private void window_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (window.SizeToContent == SizeToContent.WidthAndHeight)
+            if (window.SizeToContent == SizeToContent.WidthAndHeight || DisplayMode == DisplayMode.FixedFullscreen)
             {
-                // The image is what triggered the resize, so no reason to resize the image again.
+                // The image is already the correct size.
                 return;
             }
             ResizeEventArgs args = new ResizeEventArgs();
