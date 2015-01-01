@@ -22,6 +22,7 @@ namespace Tui
         byte[] font;
         int fontWidth;
         int fontHeight;
+        BitmapPalette palette;
         CharData[,] buffer;
         BlockingCollection<Action> eventQueue;
         bool closing;
@@ -369,6 +370,16 @@ namespace Tui
             window.Dispatcher.Invoke(CreateImage);
         }
 
+        public void SetPalette(ColorData[] colors)
+        {
+            if (colors == null || colors.Length != 16)
+            {
+                throw new ArgumentException("colors must be an array of exactly 16 items.");
+            }
+            palette = new BitmapPalette(colors.Select(c => Color.FromRgb(c.R, c.G, c.B)).ToList());
+            window.Dispatcher.Invoke(CreateImage);
+        }
+
         public void Close()
         {
             closing = true;
@@ -432,6 +443,7 @@ namespace Tui
                     buffer[y, x].Foreground = TextColor.LightGray;
                 }
             }
+            palette = CreateDefaultPalette();
             SetFont(null);
             Title = "Tui";
             DisplayMode = DisplayMode.FixedWindow;
@@ -590,7 +602,7 @@ namespace Tui
         {
             int imageWidth = Width * fontWidth;
             int imageHeight = Height * fontHeight;
-            display = new WriteableBitmap(imageWidth, imageHeight, 96, 96, PixelFormats.Indexed4, CreateDefaultPalette());
+            display = new WriteableBitmap(imageWidth, imageHeight, 96, 96, PixelFormats.Indexed4, palette);
             window.image.Source = display;
             window.image.Width = imageWidth;
             window.image.Height = imageHeight;
