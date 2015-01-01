@@ -109,19 +109,11 @@ namespace Tui
 
         public event EventHandler<ResizeEventArgs> Resized;
 
-        public Screen() : this(null)
+        public Screen() : this(80, 25)
         {
         }
 
-        public Screen(string fontPath) : this(80, 25, fontPath)
-        {
-        }
-
-        public Screen(int width, int height) : this(width, height, null)
-        {
-        }
-
-        public Screen(int width, int height, string fontPath)
+        public Screen(int width, int height)
         {
             if (width < 0)
             {
@@ -134,7 +126,7 @@ namespace Tui
             Width = width;
             Height = height;
             ManualResetEvent windowInitialized = new ManualResetEvent(false);
-            Thread windowThread = new Thread(() => InitializeWindow(fontPath, windowInitialized));
+            Thread windowThread = new Thread(() => InitializeWindow(windowInitialized));
             windowThread.SetApartmentState(ApartmentState.STA);
             windowThread.IsBackground = true;
             windowThread.Start();
@@ -351,6 +343,32 @@ namespace Tui
             window.Dispatcher.InvokeAsync(() => ResizeImage(width, height));
         }
 
+        public void SetFont(string fontPath)
+        {
+            string uri;
+            if (fontPath == null)
+            {
+                uri = "pack://application:,,,/Tui;component/Terminal.png";
+            }
+            else
+            {
+                uri = "file://" + Path.GetFullPath(fontPath);
+            }
+            BitmapSource fontBitmap = new FormatConvertedBitmap(new FormatConvertedBitmap(new BitmapImage(new Uri(uri)), PixelFormats.BlackWhite, null, 0), PixelFormats.Indexed4, CreateDefaultPalette(), 0);
+            if (fontBitmap.PixelWidth % 512 != 0)
+            {
+                throw new ArgumentException("The font image must contain 256 glyphs and each glyph must be a multiple of 2 pixels wide.");
+            }
+            fontWidth = fontBitmap.PixelWidth / 256;
+            fontHeight = fontBitmap.PixelHeight;
+            font = new byte[fontWidth / 2 * fontHeight * 256];
+            for (int i = 0; i < 256; i++)
+            {
+                fontBitmap.CopyPixels(new Int32Rect(fontWidth * i, 0, fontWidth, fontHeight), font, fontWidth / 2, fontWidth / 2 * fontHeight * i);
+            }
+            window.Dispatcher.Invoke(CreateImage);
+        }
+
         public void Close()
         {
             closing = true;
@@ -401,31 +419,9 @@ namespace Tui
             }
         }
 
-        private void InitializeWindow(string fontPath, ManualResetEvent windowInitialized)
+        private void InitializeWindow(ManualResetEvent windowInitialized)
         {
             window = new ScreenWindow();
-            string uri;
-            if (fontPath == null)
-            {
-                uri = "pack://application:,,,/Tui;component/Terminal.png";
-            }
-            else
-            {
-                uri = "file://" + Path.GetFullPath(fontPath);
-            }
-            BitmapPalette palette = CreateDefaultPalette();
-            BitmapSource fontBitmap = new FormatConvertedBitmap(new FormatConvertedBitmap(new BitmapImage(new Uri(uri)), PixelFormats.BlackWhite, null, 0), PixelFormats.Indexed4, palette, 0);
-            if (fontBitmap.PixelWidth % 512 != 0)
-            {
-                throw new ArgumentException("The font image must contain 256 glyphs and each glyph must be a multiple of 2 pixels wide.");
-            }
-            fontWidth = fontBitmap.PixelWidth / 256;
-            fontHeight = fontBitmap.PixelHeight;
-            font = new byte[fontWidth / 2 * fontHeight * 256];
-            for (int i = 0; i < 256; i++)
-            {
-                fontBitmap.CopyPixels(new Int32Rect(fontWidth * i, 0, fontWidth, fontHeight), font, fontWidth / 2, fontWidth / 2 * fontHeight * i);
-            }
             buffer = new CharData[Height, Width];
             for (int y = 0; y < Height; y++)
             {
@@ -436,7 +432,7 @@ namespace Tui
                     buffer[y, x].Foreground = TextColor.LightGray;
                 }
             }
-            CreateImage();
+            SetFont(null);
             Title = "Tui";
             DisplayMode = DisplayMode.FixedWindow;
             window.SizeToContent = SizeToContent.WidthAndHeight;
