@@ -131,21 +131,13 @@ namespace Tui
             {
                 throw new ArgumentOutOfRangeException("height", height, "height must not be negative.");
             }
+            Width = width;
+            Height = height;
             ManualResetEvent windowInitialized = new ManualResetEvent(false);
-            Thread windowThread = new Thread(() => InitializeWindow(width, height, fontPath, windowInitialized));
+            Thread windowThread = new Thread(() => InitializeWindow(fontPath, windowInitialized));
             windowThread.SetApartmentState(ApartmentState.STA);
             windowThread.IsBackground = true;
             windowThread.Start();
-            buffer = new CharData[height, width];
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    buffer[y, x].CharacterByte = 0;
-                    buffer[y, x].Background = TextColor.Black;
-                    buffer[y, x].Foreground = TextColor.LightGray;
-                }
-            }
             eventQueue = new BlockingCollection<Action>();
             pressedKeys = new Dictionary<Key, TextCompositionEventArgs>();
             windowInitialized.WaitOne();
@@ -409,7 +401,7 @@ namespace Tui
             }
         }
 
-        private void InitializeWindow(int width, int height, string fontPath, ManualResetEvent windowInitialized)
+        private void InitializeWindow(string fontPath, ManualResetEvent windowInitialized)
         {
             window = new ScreenWindow();
             string uri;
@@ -434,7 +426,17 @@ namespace Tui
             {
                 fontBitmap.CopyPixels(new Int32Rect(fontWidth * i, 0, fontWidth, fontHeight), font, fontWidth / 2, fontWidth / 2 * fontHeight * i);
             }
-            ResizeImage(width, height);
+            buffer = new CharData[Height, Width];
+            for (int y = 0; y < Height; y++)
+            {
+                for (int x = 0; x < Width; x++)
+                {
+                    buffer[y, x].CharacterByte = 0;
+                    buffer[y, x].Background = TextColor.Black;
+                    buffer[y, x].Foreground = TextColor.LightGray;
+                }
+            }
+            CreateImage();
             Title = "Tui";
             DisplayMode = DisplayMode.FixedWindow;
             window.SizeToContent = SizeToContent.WidthAndHeight;
@@ -567,8 +569,6 @@ namespace Tui
             int previousHeight = Height;
             Width = width;
             Height = height;
-            int imageWidth = width * fontWidth;
-            int imageHeight = height * fontHeight;
             CharData[,] newBuffer = new CharData[height, width];
             for (int y = 0; y < height; y++)
             {
@@ -587,11 +587,18 @@ namespace Tui
                 }
             }
             buffer = newBuffer;
+            CreateImage();
+        }
+
+        private void CreateImage()
+        {
+            int imageWidth = Width * fontWidth;
+            int imageHeight = Height * fontHeight;
             display = new WriteableBitmap(imageWidth, imageHeight, 96, 96, PixelFormats.Indexed4, CreateDefaultPalette());
             window.image.Source = display;
             window.image.Width = imageWidth;
             window.image.Height = imageHeight;
-            Draw(new Rectangle(0, 0, width, height));
+            Draw(new Rectangle(0, 0, Width, Height));
         }
 
         private void CloseWindow()
