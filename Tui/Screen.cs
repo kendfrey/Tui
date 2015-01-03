@@ -15,6 +15,9 @@ using System.Windows.Threading;
 
 namespace Tui
 {
+    /// <summary>
+    /// Represents a text-mode screen or terminal.
+    /// </summary>
     public class Screen
     {
         ScreenWindow window;
@@ -32,18 +35,27 @@ namespace Tui
         string title;
         DisplayMode displayMode;
 
+        /// <summary>
+        /// Gets the width of the screen, in characters.
+        /// </summary>
         public int Width
         {
             get;
             private set;
         }
 
+        /// <summary>
+        /// Gets the height of the screen, in characters.
+        /// </summary>
         public int Height
         {
             get;
             private set;
         }
 
+        /// <summary>
+        /// Gets or sets the title to display on the terminal window.
+        /// </summary>
         public string Title
         {
             get
@@ -57,6 +69,9 @@ namespace Tui
             }
         }
 
+        /// <summary>
+        /// Gets or sets the mode that the terminal window is displayed in.
+        /// </summary>
         public DisplayMode DisplayMode
         {
             get
@@ -102,18 +117,38 @@ namespace Tui
             }
         }
 
+        /// <summary>
+        /// Occurs when the user presses a key.
+        /// </summary>
         public event EventHandler<KeyboardInputEventArgs> KeyboardInput;
 
+        /// <summary>
+        /// Occurs when the user releases a key.
+        /// </summary>
         public event EventHandler<KeyboardInputEventArgs> KeyboardInputReleased;
 
+        /// <summary>
+        /// Occurs when the screen has been requested to close.
+        /// </summary>
         public event EventHandler Closing;
 
+        /// <summary>
+        /// Occurs when the size of the screen has changed.
+        /// </summary>
         public event EventHandler<ResizeEventArgs> Resized;
 
+        /// <summary>
+        /// Initializes a new instance of the Screen class, using the default size of 80x25.
+        /// </summary>
         public Screen() : this(80, 25)
         {
         }
 
+        /// <summary>
+        /// Initializes a new instance of the Screen class, using the specified size.
+        /// </summary>
+        /// <param name="width">The width of the screen, in characters.</param>
+        /// <param name="height">The height of the screen, in characters.</param>
         public Screen(int width, int height)
         {
             if (width < 0)
@@ -136,11 +171,18 @@ namespace Tui
             windowInitialized.WaitOne();
         }
 
+        /// <summary>
+        /// Clears all characters from the screen.
+        /// </summary>
         public void Clear()
         {
             Clear(new Rectangle(0, 0, Width, Height));
         }
 
+        /// <summary>
+        /// Clears all characters from the specified area of the screen.
+        /// </summary>
+        /// <param name="rectangle">The area to clear.</param>
         public void Clear(Rectangle rectangle)
         {
             CharData charData = new CharData();
@@ -150,6 +192,11 @@ namespace Tui
             FillCharData(charData, rectangle);
         }
 
+        /// <summary>
+        /// Fills an area with the specified character, preserving color.
+        /// </summary>
+        /// <param name="character">The character to fill the area with.</param>
+        /// <param name="rectangle">The area to fill.</param>
         public void FillChar(char character, Rectangle rectangle)
         {
             for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
@@ -163,6 +210,11 @@ namespace Tui
             Draw(rectangle);
         }
 
+        /// <summary>
+        /// Fills an area with the specified character, preserving color.
+        /// </summary>
+        /// <param name="character">The byte value of the character to fill the area with.</param>
+        /// <param name="rectangle">The area to fill.</param>
         public void FillCharByte(byte character, Rectangle rectangle)
         {
             for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
@@ -176,6 +228,12 @@ namespace Tui
             Draw(rectangle);
         }
 
+        /// <summary>
+        /// Fills an area with the specified colors, preserving characters.
+        /// </summary>
+        /// <param name="foreground">The color to fill the area's foreground with.</param>
+        /// <param name="background">The color to fill the area's background with.</param>
+        /// <param name="rectangle">The area to fill.</param>
         public void FillColors(TextColor foreground, TextColor background, Rectangle rectangle)
         {
             for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
@@ -190,6 +248,11 @@ namespace Tui
             Draw(rectangle);
         }
 
+        /// <summary>
+        /// Fills an area with the specified foreground color, preserving characters and background color.
+        /// </summary>
+        /// <param name="foreground">The color to fill the area's foreground with.</param>
+        /// <param name="rectangle">The area to fill.</param>
         public void FillForeground(TextColor foreground, Rectangle rectangle)
         {
             for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
@@ -203,6 +266,11 @@ namespace Tui
             Draw(rectangle);
         }
 
+        /// <summary>
+        /// Fills an area with the specified background color, preserving characters and foreground color.
+        /// </summary>
+        /// <param name="background">The color to fill the area's background with.</param>
+        /// <param name="rectangle">The area to fill.</param>
         public void FillBackground(TextColor background, Rectangle rectangle)
         {
             for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
@@ -216,6 +284,11 @@ namespace Tui
             Draw(rectangle);
         }
 
+        /// <summary>
+        /// Fills an area with the specified character and color.
+        /// </summary>
+        /// <param name="charData">The character and color to fill the area with.</param>
+        /// <param name="rectangle">The area to fill.</param>
         public void FillCharData(CharData charData, Rectangle rectangle)
         {
             for (int y = rectangle.Y; y < rectangle.Y + rectangle.Height; y++)
@@ -229,6 +302,12 @@ namespace Tui
             Draw(rectangle);
         }
 
+        /// <summary>
+        /// Writes a character to the specified location, preserving color.
+        /// </summary>
+        /// <param name="character">The character to write.</param>
+        /// <param name="x">The X coordinate to write to.</param>
+        /// <param name="y">The Y coordinate to write to.</param>
         public void WriteChar(char character, int x, int y)
         {
             CheckBounds(x, y);
@@ -236,6 +315,12 @@ namespace Tui
             Draw(x, y);
         }
 
+        /// <summary>
+        /// Writes a character to the specified location, preserving color.
+        /// </summary>
+        /// <param name="character">The byte value of the character to write.</param>
+        /// <param name="x">The X coordinate to write to.</param>
+        /// <param name="y">The Y coordinate to write to.</param>
         public void WriteCharByte(byte character, int x, int y)
         {
             CheckBounds(x, y);
@@ -243,6 +328,13 @@ namespace Tui
             Draw(x, y);
         }
 
+        /// <summary>
+        /// Writes the specified colors to the specified location, preserving characters.
+        /// </summary>
+        /// <param name="foreground">The foreground color to write.</param>
+        /// <param name="background">The background color to write.</param>
+        /// <param name="x">The X coordinate to write to.</param>
+        /// <param name="y">The Y coordinate to write to.</param>
         public void WriteColors(TextColor foreground, TextColor background, int x, int y)
         {
             CheckBounds(x, y);
@@ -251,6 +343,12 @@ namespace Tui
             Draw(x, y);
         }
 
+        /// <summary>
+        /// Writes the specified foreground color to the specified location, preserving characters and background color.
+        /// </summary>
+        /// <param name="foreground">The foreground color to write.</param>
+        /// <param name="x">The X coordinate to write to.</param>
+        /// <param name="y">The Y coordinate to write to.</param>
         public void WriteForeground(TextColor foreground, int x, int y)
         {
             CheckBounds(x, y);
@@ -258,6 +356,12 @@ namespace Tui
             Draw(x, y);
         }
 
+        /// <summary>
+        /// Writes the specified bacground color to the specified location, preserving characters and foreground color.
+        /// </summary>
+        /// <param name="background">The background color to write.</param>
+        /// <param name="x">The X coordinate to write to.</param>
+        /// <param name="y">The Y coordinate to write to.</param>
         public void WriteBackground(TextColor background, int x, int y)
         {
             CheckBounds(x, y);
@@ -265,6 +369,12 @@ namespace Tui
             Draw(x, y);
         }
 
+        /// <summary>
+        /// Writes the specified character and color to the specified location.
+        /// </summary>
+        /// <param name="charData">The character and color to write.</param>
+        /// <param name="x">The X coordinate to write to.</param>
+        /// <param name="y">The Y coordinate to write to.</param>
         public void WriteCharData(CharData charData, int x, int y)
         {
             CheckBounds(x, y);
@@ -272,6 +382,12 @@ namespace Tui
             Draw(x, y);
         }
 
+        /// <summary>
+        /// Writes the specified string beginning at the specified location, preserving color.
+        /// </summary>
+        /// <param name="str">The string to write.</param>
+        /// <param name="x">The X coordinate to write to.</param>
+        /// <param name="y">The Y coordinate to write to.</param>
         public void WriteString(string str, int x, int y)
         {
             for (int i = 0; i < str.Length; i++)
@@ -290,6 +406,13 @@ namespace Tui
             }
         }
 
+        /// <summary>
+        /// Copies a character and color buffer directly to the screen.
+        /// </summary>
+        /// <param name="source">The buffer to copy from, represented in row-major order (Y coordinate first).</param>
+        /// <param name="sourceX">The X coordinate of the location in the buffer to copy from.</param>
+        /// <param name="sourceY">The Y coordinate of the location in the buffer to copy from.</param>
+        /// <param name="rectangle">The area of the screen to copy to.</param>
         public void WriteBuffer(CharData[,] source, int sourceX, int sourceY, Rectangle rectangle)
         {
             for (int y = 0; y < rectangle.Height; y++)
@@ -303,12 +426,25 @@ namespace Tui
             Draw(rectangle);
         }
 
+        /// <summary>
+        /// Gets the character and color currently displayed at the specified location.
+        /// </summary>
+        /// <param name="x">The X coordinate to get.</param>
+        /// <param name="y">The Y coordinate to get.</param>
+        /// <returns>The character and color from the specified location.</returns>
         public CharData GetCharData(int x, int y)
         {
             CheckBounds(x, y);
             return buffer[y, x];
         }
 
+        /// <summary>
+        /// Copies a character and color buffer directly from the screen.
+        /// </summary>
+        /// <param name="destination">The buffer to copy to, represented in row-major order (Y coordinate first).</param>
+        /// <param name="destinationX">The X coordinate of the location in the buffer to copy to.</param>
+        /// <param name="destinationY">The Y coordinate of the location in the buffer to copy to.</param>
+        /// <param name="rectangle">The area of the screen to copy from.</param>
         public void GetBuffer(CharData[,] destination, int destinationX, int destinationY, Rectangle rectangle)
         {
             for (int y = 0; y < rectangle.Height; y++)
@@ -321,6 +457,9 @@ namespace Tui
             }
         }
 
+        /// <summary>
+        /// Runs the event loop for the screen.
+        /// </summary>
         public void Run()
         {
             while (!closing)
@@ -331,6 +470,11 @@ namespace Tui
             CloseWindow();
         }
 
+        /// <summary>
+        /// Changes the size of the screen.
+        /// </summary>
+        /// <param name="width">The width of the screen, in characters.</param>
+        /// <param name="height">The height of the screen, in characters.</param>
         public void Resize(int width, int height)
         {
             if (width < 0)
@@ -344,6 +488,10 @@ namespace Tui
             window.Dispatcher.InvokeAsync(() => ResizeImage(width, height));
         }
 
+        /// <summary>
+        /// Changes the font used to display the characters on the screen.
+        /// </summary>
+        /// <param name="fontPath">The path to the font bitmap to use, or null to use the default font.</param>
         public void SetFont(string fontPath)
         {
             string uri;
@@ -370,6 +518,10 @@ namespace Tui
             window.Dispatcher.Invoke(CreateImage);
         }
 
+        /// <summary>
+        /// Changes the color palette used to display the characters on the screen.
+        /// </summary>
+        /// <param name="colors">An array of 16 colors to use as the new palette.</param>
         public void SetPalette(ColorData[] colors)
         {
             if (colors == null || colors.Length != 16)
@@ -380,6 +532,9 @@ namespace Tui
             window.Dispatcher.Invoke(CreateImage);
         }
 
+        /// <summary>
+        /// Closes the screen and terminates the event loop.
+        /// </summary>
         public void Close()
         {
             closing = true;
@@ -390,6 +545,10 @@ namespace Tui
             eventQueue.Add(action);
         }
 
+        /// <summary>
+        /// Raises the Closing event.
+        /// </summary>
+        /// <param name="e">The event data to pass to the event.</param>
         protected virtual void OnClosing(EventArgs e)
         {
             EventHandler closing = Closing;
@@ -403,6 +562,10 @@ namespace Tui
             }
         }
 
+        /// <summary>
+        /// Raises the KeyboardInput event.
+        /// </summary>
+        /// <param name="e">The event data to pass to the event.</param>
         protected virtual void OnKeyboardInput(KeyboardInputEventArgs e)
         {
             EventHandler<KeyboardInputEventArgs> keyboardInput = KeyboardInput;
@@ -412,6 +575,10 @@ namespace Tui
             }
         }
 
+        /// <summary>
+        /// Raises the KeyboardInputReleased event.
+        /// </summary>
+        /// <param name="e">The event data to pass to the event.</param>
         protected virtual void OnKeyboardInputReleased(KeyboardInputEventArgs e)
         {
             EventHandler<KeyboardInputEventArgs> keyboardInputReleased = KeyboardInputReleased;
@@ -421,6 +588,10 @@ namespace Tui
             }
         }
 
+        /// <summary>
+        /// Raises the Resized event.
+        /// </summary>
+        /// <param name="e">The event data to pass to the event.</param>
         protected virtual void OnResized(ResizeEventArgs e)
         {
             EventHandler<ResizeEventArgs> resized = Resized;
