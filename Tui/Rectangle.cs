@@ -27,39 +27,39 @@ namespace Tui
         }
 
         /// <summary>
-        /// Gets or sets the X coordinate of the top-left corner of the rectangle.
+        /// Gets the X coordinate of the top-left corner of the rectangle.
         /// </summary>
         public int X
         {
             get;
-            set;
+            private set;
         }
 
         /// <summary>
-        /// Gets or sets the Y coordinate of the top-left corner of the rectangle.
+        /// Gets the Y coordinate of the top-left corner of the rectangle.
         /// </summary>
         public int Y
         {
             get;
-            set;
+            private set;
         }
 
         /// <summary>
-        /// Gets or sets the width of the rectangle.
+        /// Gets the width of the rectangle.
         /// </summary>
         public int Width
         {
             get;
-            set;
+            private set;
         }
 
         /// <summary>
-        /// Gets or sets the height of the rectangle.
+        /// Gets the height of the rectangle.
         /// </summary>
         public int Height
         {
             get;
-            set;
+            private set;
         }
     }
 }
