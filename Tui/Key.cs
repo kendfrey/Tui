@@ -1,5 +1,8 @@
 ﻿namespace Tui
 {
+    /// <summary>
+    /// Specifies a keyboard key.
+    /// </summary>
     public enum Key
     {
         None,
