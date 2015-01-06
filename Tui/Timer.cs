@@ -9,7 +9,7 @@ namespace Tui
     /// <summary>
     /// Allows firing events at specific times.
     /// </summary>
-    public class Timer
+    public class Timer : IDisposable
     {
         System.Timers.Timer timer;
         Screen screen;
@@ -48,6 +48,32 @@ namespace Tui
             {
                 tick(this, e);
             }
+        }
+
+        /// <summary>
+        /// Stops the timer and releases all resources.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases resources used by the timer.
+        /// </summary>
+        /// <param name="disposing">Specifies whether to release managed resources in addition to unmanaged resources.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                timer.Dispose();
+            }
+        }
+
+        ~Timer()
+        {
+            Dispose(false);
         }
     }
 }
