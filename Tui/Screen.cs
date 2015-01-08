@@ -85,35 +85,7 @@ namespace Tui
                     return;
                 }
                 displayMode = value;
-                window.Dispatcher.Invoke(() =>
-                    {
-                        window.image.Stretch = Stretch.None;
-                        window.WindowStyle = WindowStyle.SingleBorderWindow;
-                        window.SizeToContent = SizeToContent.WidthAndHeight;
-                        window.WindowState = WindowState.Normal;
-                        window.ResizeMode = ResizeMode.CanMinimize;
-                        switch (displayMode)
-                        {
-                            case DisplayMode.FixedWindow:
-                                break;
-                            case DisplayMode.ResizableWindow:
-                                window.ResizeMode = ResizeMode.CanResize;
-                                break;
-                            case DisplayMode.Fullscreen:
-                                window.WindowStyle = WindowStyle.None;
-                                window.SizeToContent = SizeToContent.Manual;
-                                window.WindowState = WindowState.Maximized;
-                                break;
-                            case DisplayMode.FixedFullscreen:
-                                window.WindowStyle = WindowStyle.None;
-                                window.SizeToContent = SizeToContent.Manual;
-                                window.WindowState = WindowState.Maximized;
-                                window.image.Stretch = Stretch.Fill;
-                                window.image.Width = double.NaN;
-                                window.image.Height = double.NaN;
-                                break;
-                        }
-                    });
+                window.Dispatcher.Invoke(UpdateDisplayMode);
             }
         }
 
@@ -485,7 +457,7 @@ namespace Tui
             {
                 throw new ArgumentOutOfRangeException("height", height, "height must not be negative.");
             }
-            window.Dispatcher.InvokeAsync(() => ResizeImage(width, height));
+            window.Dispatcher.Invoke(() => ResizeImage(width, height));
         }
 
         /// <summary>
@@ -617,8 +589,8 @@ namespace Tui
             palette = CreateDefaultPalette();
             SetFont(null);
             Title = "Tui";
-            DisplayMode = DisplayMode.FixedWindow;
-            window.SizeToContent = SizeToContent.WidthAndHeight;
+            displayMode = DisplayMode.FixedWindow;
+            UpdateDisplayMode();
             window.TextInput += window_TextInput;
             window.KeyDown += window_KeyDown;
             window.KeyUp += window_KeyUp;
@@ -742,6 +714,36 @@ namespace Tui
             return IntPtr.Zero;
         }
 
+        private void UpdateDisplayMode()
+        {
+            window.image.Stretch = Stretch.None;
+            window.WindowStyle = WindowStyle.SingleBorderWindow;
+            window.SizeToContent = SizeToContent.WidthAndHeight;
+            window.WindowState = WindowState.Normal;
+            window.ResizeMode = ResizeMode.CanMinimize;
+            switch (displayMode)
+            {
+                case DisplayMode.FixedWindow:
+                    break;
+                case DisplayMode.ResizableWindow:
+                    window.ResizeMode = ResizeMode.CanResize;
+                    break;
+                case DisplayMode.Fullscreen:
+                    window.WindowStyle = WindowStyle.None;
+                    window.SizeToContent = SizeToContent.Manual;
+                    window.WindowState = WindowState.Maximized;
+                    break;
+                case DisplayMode.FixedFullscreen:
+                    window.WindowStyle = WindowStyle.None;
+                    window.SizeToContent = SizeToContent.Manual;
+                    window.WindowState = WindowState.Maximized;
+                    window.image.Stretch = Stretch.Fill;
+                    window.image.Width = double.NaN;
+                    window.image.Height = double.NaN;
+                    break;
+            }
+        }
+
         private void ResizeImage(int width, int height)
         {
             int previousWidth = Width;
@@ -775,8 +777,11 @@ namespace Tui
             int imageHeight = Height * fontHeight;
             display = new WriteableBitmap(imageWidth, imageHeight, 96, 96, PixelFormats.Indexed4, palette);
             window.image.Source = display;
-            window.image.Width = imageWidth;
-            window.image.Height = imageHeight;
+            if (DisplayMode != DisplayMode.FixedFullscreen)
+            {
+                window.image.Width = imageWidth;
+                window.image.Height = imageHeight;
+            }
             Draw(new Rectangle(0, 0, Width, Height));
         }
 
