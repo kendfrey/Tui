@@ -815,7 +815,7 @@ namespace Tui
         {
             if (!window.Dispatcher.CheckAccess())
             {
-                window.Dispatcher.InvokeAsync(() => Draw(rectangle));
+                window.Dispatcher.InvokeAsync(() => Draw(rectangle), DispatcherPriority.Send);
                 return;
             }
             byte[] data = new byte[fontWidth / 2 * fontHeight];
